@@ -1,0 +1,16 @@
+parse_pdf_task:
+
+  description: >
+    You must use the following tool "pdf_parser_tool".
+    To use the tool, you MUST pass the information in the following manner:
+    ACTION: pdf_parser_tool
+    ACTION-INPUT: {
+      "pdf_document_file_path": "{pdf_document_file_path}"
+    }
+    Do not do any further thinking after receiving the output from the tool.
+
+  expected_output: "Any output from the tool"
+
+  agent: parse_pdf_agent
+
+  verbose: true
