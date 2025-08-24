@@ -7,10 +7,28 @@ parse_pdf_task:
     ACTION-INPUT: {
       "pdf_document_file_path": "{pdf_document_file_path}"
     }
-    Do not do any further thinking after receiving the output from the tool.
+    Do not do any further thinking or processing after receiving the output from the tool.
+    Make sure the output is still a valid list of image paths.
 
-  expected_output: "Any output from the tool"
+  expected_output: List of image paths
 
   agent: parse_pdf_agent
+
+  verbose: true
+
+image_to_text_task:
+  description: >
+    You must use the following tool "Image2TextTool".
+    To use the tool, you MUST pass the information in the following manner:
+    ACTION: Image2TextTool
+    ACTION-INPUT: {
+      "image_paths": "{parse_pdf_task.image_paths}"
+    }
+    You will receive a list of image paths from the previous task.
+    Do not do any further thinking or preprocessing after receiving the output from the tool.  
+
+  expected_output: List of texts
+
+  agent: image_to_text_agent
 
   verbose: true

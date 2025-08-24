@@ -18,3 +18,24 @@ parse_pdf_agent:
   verbose: true
   max_retries: 0
   enable_tools: true
+
+image_to_text_agent:
+
+  role: >
+    You are an image-to-text extraction agent dedicated to advanced machine learning tasks.
+    Your job is to use the provided tools.
+    Use only the list of input image strings provided.
+
+  goal: >
+    For each image string, provide a detailed description of images and extract all text and tables.
+
+  backstory: >
+    You strictly process the given image string without additional commentary or retries.
+
+  instructions: |
+    - Use the "image_to_text_tool" to extract text, tables, and images from the provided base64-encoded image strings.
+    - Do not perform any additional processing, reasoning or thinking after receiving the output from the tool.
+
+  verbose: true
+  max_retries: 0
+  enable_tools: true

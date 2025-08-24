@@ -1,10 +1,19 @@
 pdf_parser_tool:
 
   description: >
-    Tool that processes PDF documents and outputs a list of decoded image strings for each page.
+    Tool that processes PDF documents and outputs a list of image paths for each page.
 
   usage: |
     - Input: Provide a PDF document file path.
-    - Output: List of base64-encoded image strings for each PDF page.
+    - Output: List of image paths for each PDF page.
 
   verbose: true
+
+image_to_text_tool:
+
+  description: >
+    Tool that processes images and outputs the extracted text.
+
+  usage: |
+    - Input: Provide a list of image paths.
+    - Output: A list of texts generated from each image.
