@@ -16,4 +16,22 @@ image_to_text_tool:
 
   usage: |
     - Input: Provide a list of image paths.
-    - Output: A list of texts generated from each image.
+    - Output: A concatenated string of extracted texts
+
+chunk_text_tool:
+
+  description: >
+    Tool that processes extracted text and outputs chunked text segments.
+
+  usage: |
+    - Input: Provide a concatenated string of extracted texts.
+    - Output: A list of text chunks
+
+vectorize_text_qa_tool:
+
+  description: >
+    Tool that processes text chunks and stores in a vector store, and answer user query based on the most similar chunks
+
+  usage: |
+    - Input: Provide a list of text chunks, embedding model, and llm client to answer user query.
+    - Output: A string answer to the user query

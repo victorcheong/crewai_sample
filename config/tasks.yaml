@@ -27,8 +27,43 @@ image_to_text_task:
     You will receive a list of image paths from the previous task.
     Do not do any further thinking or preprocessing after receiving the output from the tool.  
 
-  expected_output: List of texts
+  expected_output: A concatenated string of extracted texts
 
   agent: image_to_text_agent
+
+  verbose: true
+
+chunk_text_task:
+  description: >
+    You must use the following tool "ChunkTextTool".
+    To use the tool, you MUST pass the information in the following manner:
+    ACTION: ChunkTextTool
+    ACTION-INPUT: {
+      "extracted_text": "{image_to_text_task.extracted_text}"
+    }
+    You will receive a concatenated string of extracted texts from the previous task.
+    Do not do any further thinking or preprocessing after receiving the output from the tool.
+
+  expected_output: A list of text chunks
+
+  agent: chunk_text_agent
+
+  verbose: true
+
+vectorize_text_qa_task:
+  description: >
+    You must use the following tool "VectorizeTextQATool".
+    To use the tool, you MUST pass the information in the following manner:
+    ACTION: VectorizeTextQATool
+    ACTION-INPUT: {
+      "generated_chunks": "{chunk_text_task.generated_chunks}",
+      "user_query": "{user_query}"
+    }
+    You will receive a list of chunks from the previous task.
+    Do not do any further thinking or preprocessing after receiving the output from the tool.
+
+  expected_output: A string answer to the user query
+
+  agent: vectorize_text_qa_agent
 
   verbose: true
