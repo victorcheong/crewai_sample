@@ -52,7 +52,7 @@ vectorize_text_qa_task:
     You will receive a list of chunks from the previous task.
     Do not do any further thinking or preprocessing after receiving the output from the tool.
     Return the output from the tool exactly.
-  expected_output: string
+  expected_output: ""
   agent: vectorize_text_qa_agent
   verbose: true
 
@@ -67,6 +67,6 @@ evaluation_task:
       "retrieved_docs": "{retrieved_docs}"
     }
     Do not do any further thinking or preprocessing after receiving the output from the tool.
-  expected_output: A dictionary containing the evaluation score and reason
+  expected_output: float
   agent: evaluation_agent
   verbose: true

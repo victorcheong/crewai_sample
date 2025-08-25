@@ -3,19 +3,23 @@ from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task, before_kickoff, after_kickoff
 from tools import PDFParserTool, Image2TextTool, ChunkTextTool, VectorizeTextQATool, EvaluationTool
 import os
-# from langchain_ollama import ChatOllama
+from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_community.embeddings import SentenceTransformerEmbeddings
+from dotenv import load_dotenv
 
 @CrewBase
 class EvaluationCrew():
-
+    load_dotenv()
     # Agents and Tasks configuration
     agents_config = os.path.join(os.path.dirname(__file__), 'config', 'agents.yaml')
     tasks_config = os.path.join(os.path.dirname(__file__), 'config', 'tasks.yaml')
+    output_log_file = os.getenv("EVALUATION_CREW_OUTPUT_LOG_FILE")
 
     @before_kickoff
     def before_kickoff(self, inputs):
+        if self.output_log_file:
+            open(self.output_log_file, 'w').close()
         return inputs
 
     @after_kickoff
@@ -27,6 +31,7 @@ class EvaluationCrew():
         return Agent(
             config=self.agents_config['parse_pdf_agent'], 
             tools=[PDFParserTool()],
+            result_as_answer=True,
             verbose=True,
             reasoning=False,
             max_reasoning_attempts=0
@@ -34,10 +39,12 @@ class EvaluationCrew():
 
     @agent
     def image_to_text_agent(self) -> Agent:
-        llm = ChatOpenAI(model = 'gpt-4o-mini', temperature = 0)
+        # llm = ChatOpenAI(model = 'gpt-4o-mini', temperature = 0)
+        llm = ChatOllama(model = 'gemma3:12b-it-qat', temperature = 0)
         return Agent(
             config=self.agents_config['image_to_text_agent'], 
             tools=[Image2TextTool(llm)],
+            result_as_answer=True,
             verbose=True,
             reasoning=False,
             max_reasoning_attempts=0
@@ -45,10 +52,12 @@ class EvaluationCrew():
     
     @agent
     def chunk_text_agent(self) -> Agent:
-        llm = ChatOpenAI(model = 'gpt-4o-mini', temperature = 0)
+        # llm = ChatOpenAI(model = 'gpt-4o-mini', temperature = 0)
+        llm = ChatOllama(model = 'gemma3:12b-it-qat', temperature = 0)
         return Agent(
             config=self.agents_config['chunk_text_agent'], 
             tools=[ChunkTextTool(llm)],
+            result_as_answer=True,
             verbose=True,
             reasoning=False,
             max_reasoning_attempts=0
@@ -57,10 +66,12 @@ class EvaluationCrew():
     @agent
     def vectorize_text_qa_agent(self) -> Agent:
         embedding_model = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-        llm = ChatOpenAI(model = 'gpt-4o-mini', temperature = 0)
+        # llm = ChatOpenAI(model = 'gpt-4o-mini', temperature = 0)
+        llm = ChatOllama(model = 'gemma3:12b-it-qat', temperature = 0)
         return Agent(
             config=self.agents_config['vectorize_text_qa_agent'], 
             tools=[VectorizeTextQATool(embedding_model, llm)],
+            result_as_answer=True,
             verbose=True,
             reasoning=False,
             max_reasoning_attempts=0
@@ -71,6 +82,7 @@ class EvaluationCrew():
         return Agent(
             config=self.agents_config['evaluation_agent'], 
             tools=[EvaluationTool()],
+            result_as_answer=True,
             verbose=True,
             reasoning=False,
             max_reasoning_attempts=0
@@ -116,4 +128,5 @@ class EvaluationCrew():
             tasks=[self.evaluation_task()],
             process=Process.sequential,
             verbose=True,
+            output_log_file=self.output_log_file
         )

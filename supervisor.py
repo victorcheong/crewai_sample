@@ -6,11 +6,11 @@ import os
 
 class Supervisor():
 
-    def __init__(self):
+    def __init__(self, llm, vision_llm):
         load_dotenv()
         self.pdf_path = os.getenv("PDF_DOCUMENT_FILE_PATH")
         self.input_query = os.getenv("USER_QUERY")
-        self.first_crew = PDFParsingCrew()
+        self.first_crew = PDFParsingCrew(llm, vision_llm)
         self.second_crew = EvaluationCrew()
 
     def run(self, initial_inputs):

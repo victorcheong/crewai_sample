@@ -5,9 +5,14 @@ from typing import Any, Dict, Union
 from langchain_core.messages import HumanMessage
 import time
 from langchain_community.vectorstores import FAISS
-from deepeval.metrics import FaithfulnessMetric
+# from deepeval.metrics import FaithfulnessMetric, AnswerRelevancyMetric
+from ragas import evaluate
+from datasets import Dataset
+from ragas.metrics import Faithfulness, ResponseRelevancy
 from deepeval.test_case import LLMTestCase
 import json
+from dotenv import load_dotenv
+import os
 
 def pdf_page_to_png_bytes(page):
     """
@@ -86,7 +91,7 @@ class Image2TextTool(BaseTool):
             image_string = image_bytes_to_base64(image_bytes)
             # Construct prompt or call LLM directly with the image string data for OCR/text extraction
             messages = prompt_func({"text": """
-            Extract all texts, tables, and images from this PDF page.
+            Extract all texts, tables, and images from this PDF page. Keep your answers as short as possible.
 
             For images:
 
@@ -160,7 +165,7 @@ class VectorizeTextQATool(BaseTool):
         self.embedding_llm = embedding_llm_client
         self.llm = llm_client
 
-    def _run(self, chunks: list, user_query: str) -> str:
+    def _run(self, chunks: list, user_query: str) -> dict:
         # Creates vector store and encodes texts internally
         vectorstore = FAISS.from_texts(chunks, self.embedding_llm)
         retrieved_docs = vectorstore.similarity_search(user_query, k=3)
@@ -176,7 +181,7 @@ class VectorizeTextQATool(BaseTool):
         5. Answer concisely and only what is asked.
         
         Instructions:
-        Use the context below to answer the question, interpreting the information by understanding its content, even if exact phrases differ.
+        Use the context below to answer the question, interpreting the information by understanding its content, even if exact phrases differ. Keep your answers as short as possible.
         
         Question: {user_query}
         Context:
@@ -185,7 +190,7 @@ class VectorizeTextQATool(BaseTool):
         json_str = json.dumps(retrieved_docs)
         with open("retrieved_docs.json", "w") as f:
             f.write(json_str)
-        return response.content
+        return {"answer": response.content, "retrieved_docs": retrieved_docs}
 
 class EvaluationTool(BaseTool):
     name: str = "EvaluationTool"
@@ -194,13 +199,33 @@ class EvaluationTool(BaseTool):
     def __init__(self):
         super().__init__()
 
-    def _run(self, output: str, user_query: str, retrieved_docs: list) -> Dict[str, Union[float, str]]:
-        faithfulness = FaithfulnessMetric()
-        test_case = LLMTestCase(
-            input=user_query,
-            actual_output=output,
-            expected_output="Oil Pressure Sensor, Wiring, and Engine Interface Box",
-            retrieval_context=retrieved_docs
-        )
-        faithfulness.measure(test_case)
-        return {"Score": faithfulness.score, "Reason": faithfulness.reason}
+    def _run(self, output: str, user_query: str, retrieved_docs: list) -> float:
+        load_dotenv()
+        ragas_input = {
+            "question": [user_query],
+            "answer": [output],
+            "contexts": [retrieved_docs],
+            "ground_truth": [os.getenv("MODEL_ANSWER")],
+        }
+        ragas_input = Dataset.from_dict(ragas_input)
+        result = evaluate(ragas_input, metrics=[Faithfulness(), ResponseRelevancy()])
+        result = result.scores[0]
+        faithfulness = float(result['faithfulness'])
+        response_relevancy = float(result['answer_relevancy'])
+        result = {"faithfulness": faithfulness, "answer_relevancy": response_relevancy}
+        weights = {"faithfulness": 0.5, "answer_relevancy": 0.5}
+        # Compute weighted average
+        score = sum(result[m] * weights.get(m, 0) for m in result.keys()) / sum(weights.values())
+        
+        # test_case = LLMTestCase(
+        #     input=user_query,
+        #     actual_output=output,
+        #     expected_output=os.getenv("MODEL_ANSWER"),
+        #     retrieval_context=retrieved_docs
+        # )
+        # # Initialize the AnswerRelevancyMetric
+        # metric = AnswerRelevancyMetric()
+
+        # # Measure the relevancy score
+        # score = metric.measure(test_case)
+        return score
