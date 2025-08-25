@@ -1,5 +1,4 @@
 parse_pdf_task:
-
   description: >
     You must use the following tool "pdf_parser_tool".
     To use the tool, you MUST pass the information in the following manner:
@@ -9,11 +8,8 @@ parse_pdf_task:
     }
     Do not do any further thinking or processing after receiving the output from the tool.
     Make sure the output is still a valid list of image paths.
-
   expected_output: List of image paths
-
   agent: parse_pdf_agent
-
   verbose: true
 
 image_to_text_task:
@@ -26,11 +22,8 @@ image_to_text_task:
     }
     You will receive a list of image paths from the previous task.
     Do not do any further thinking or preprocessing after receiving the output from the tool.  
-
   expected_output: A concatenated string of extracted texts
-
   agent: image_to_text_agent
-
   verbose: true
 
 chunk_text_task:
@@ -43,11 +36,8 @@ chunk_text_task:
     }
     You will receive a concatenated string of extracted texts from the previous task.
     Do not do any further thinking or preprocessing after receiving the output from the tool.
-
   expected_output: A list of text chunks
-
   agent: chunk_text_agent
-
   verbose: true
 
 vectorize_text_qa_task:
@@ -61,9 +51,22 @@ vectorize_text_qa_task:
     }
     You will receive a list of chunks from the previous task.
     Do not do any further thinking or preprocessing after receiving the output from the tool.
-
-  expected_output: A string answer to the user query
-
+    Return the output from the tool exactly.
+  expected_output: string
   agent: vectorize_text_qa_agent
+  verbose: true
 
+evaluation_task:
+  description: >
+    You must use the following tool "EvaluationTool".
+    To use the tool, you MUST pass the information in the following manner:
+    ACTION: EvaluationTool
+    ACTION-INPUT: {
+      "output": "{answer}",
+      "user_query": "{user_query}",
+      "retrieved_docs": "{retrieved_docs}"
+    }
+    Do not do any further thinking or preprocessing after receiving the output from the tool.
+  expected_output: A dictionary containing the evaluation score and reason
+  agent: evaluation_agent
   verbose: true

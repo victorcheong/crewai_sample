@@ -30,8 +30,17 @@ chunk_text_tool:
 vectorize_text_qa_tool:
 
   description: >
-    Tool that processes text chunks and stores in a vector store, and answer user query based on the most similar chunks
+    Tool that processes text chunks and stores in a vector store, and answer user query based on the most similar chunks.
+    Return the output from the tool exactly.
 
   usage: |
     - Input: Provide a list of text chunks, embedding model, and llm client to answer user query.
-    - Output: A string answer to the user query
+    - Output: A string answer to the user query, and a list of the most similar chunks from the vector store
+
+evaluation_tool:
+  description: >
+    Tool that evaluates the output of the QA system against the user query and retrieved documents.
+
+  usage: |
+    - Input: Provide the output from the QA system, the user query, and the retrieved documents.
+    - Output: A dictionary containing the evaluation score and reason

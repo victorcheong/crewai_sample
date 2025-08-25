@@ -1,10 +1,13 @@
 from crewai.tools import BaseTool
 import fitz
 import base64
-from typing import Any
+from typing import Any, Dict, Union
 from langchain_core.messages import HumanMessage
 import time
 from langchain_community.vectorstores import FAISS
+from deepeval.metrics import FaithfulnessMetric
+from deepeval.test_case import LLMTestCase
+import json
 
 def pdf_page_to_png_bytes(page):
     """
@@ -161,6 +164,8 @@ class VectorizeTextQATool(BaseTool):
         # Creates vector store and encodes texts internally
         vectorstore = FAISS.from_texts(chunks, self.embedding_llm)
         retrieved_docs = vectorstore.similarity_search(user_query, k=3)
+        retrieved_docs = [doc.page_content for doc in retrieved_docs]
+        # retrieved_docs = "\n".join(retrieved_docs)
         prompt = f"""You are a document analysis assistant. Your only source of information is the provided context.
   
         STRICT GUIDELINES:
@@ -177,4 +182,25 @@ class VectorizeTextQATool(BaseTool):
         Context:
         {retrieved_docs}"""
         response = self.llm.invoke(prompt)
-        return {"answer": response.content}
+        json_str = json.dumps(retrieved_docs)
+        with open("retrieved_docs.json", "w") as f:
+            f.write(json_str)
+        return response.content
+
+class EvaluationTool(BaseTool):
+    name: str = "EvaluationTool"
+    description: str = "Evaluates the output from the first crew"
+
+    def __init__(self):
+        super().__init__()
+
+    def _run(self, output: str, user_query: str, retrieved_docs: list) -> Dict[str, Union[float, str]]:
+        faithfulness = FaithfulnessMetric()
+        test_case = LLMTestCase(
+            input=user_query,
+            actual_output=output,
+            expected_output="Oil Pressure Sensor, Wiring, and Engine Interface Box",
+            retrieval_context=retrieved_docs
+        )
+        faithfulness.measure(test_case)
+        return {"Score": faithfulness.score, "Reason": faithfulness.reason}
