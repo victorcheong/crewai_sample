@@ -16,7 +16,7 @@ class PlotResults:
         # Create scatter plot
         plt.figure(figsize=(8, 5))
         for i, perm in enumerate(self.permutations):
-            plt.scatter(self.times[i], self.scores[i], color=perm_color_map[perm], label=f'{perm[0]} | {perm[1]}')
+            plt.scatter(self.times[i], self.scores[i], color=perm_color_map[perm], label=f'LLM: {perm[0]} | Vision LLM: {perm[1]}')
 
         plt.title('Scores vs Time by Permutation')
         plt.xlabel('Time (seconds)')

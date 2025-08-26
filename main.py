@@ -1,4 +1,5 @@
 # Import Libraries
+from langchain_ollama import ChatOllama
 from supervisor import Supervisor
 from process_results import ProcessResults
 from plot_results import PlotResults
@@ -12,7 +13,7 @@ async def main():
     flow.save_dynamic_graph("flow_graph")
 
 if __name__ == "__main__":
-    llms = ['gpt-4o-mini', 'gpt-4.1-mini']
+    llms = ['gemma3:12b-it-qat', 'gpt-4o-mini']
     vision_llms = ['gpt-4o-mini', 'gpt-4.1-mini']
     permutations = list(product(llms, vision_llms))
     scores = []
@@ -29,6 +30,6 @@ if __name__ == "__main__":
         duration = process_results_obj.compute_time()
         times.append(duration)
         print(f"Processing time: {duration} seconds")
-    # asyncio.run(main())
     plot_results = PlotResults(scores, times, permutations)
     plot_results.plot_results()
+    # asyncio.run(main())

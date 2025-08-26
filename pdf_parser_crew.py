@@ -42,9 +42,9 @@ class PDFParsingCrew():
 
     @agent
     def image_to_text_agent(self) -> Agent:
-        try:
+        if ':' not in self.vision_llm:
             llm = ChatOpenAI(model=self.vision_llm, temperature=0)
-        except Exception as e:
+        else:
             llm = ChatOllama(model=self.vision_llm, temperature=0)
         return Agent(
             config=self.agents_config['image_to_text_agent'], 
@@ -57,9 +57,9 @@ class PDFParsingCrew():
     
     @agent
     def chunk_text_agent(self) -> Agent:
-        try:
+        if ':' not in self.llm:
             llm = ChatOpenAI(model=self.llm, temperature=0)
-        except Exception as e:
+        else:
             llm = ChatOllama(model=self.llm, temperature=0)
         return Agent(
             config=self.agents_config['chunk_text_agent'], 
@@ -73,9 +73,9 @@ class PDFParsingCrew():
     @agent
     def vectorize_text_qa_agent(self) -> Agent:
         embedding_model = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-        try:
+        if ':' not in self.llm:
             llm = ChatOpenAI(model=self.llm, temperature=0)
-        except Exception as e:
+        else:
             llm = ChatOllama(model=self.llm, temperature=0)
         return Agent(
             config=self.agents_config['vectorize_text_qa_agent'], 
