@@ -5,11 +5,11 @@ Note:
 4. I have created 2 possible approaches, 1 is synchronous (using supervisor), and the other is async (using Flow, which also produces a diagram as byproduct)
 
 In your .env file, do add the following configs:
-OPENAI_API_KEY
-PDF_DOCUMENT_FILE_PATH
-GOLDEN_QA_DATASET
-PDF_PARSER_CREW_OUTPUT_LOG_FILE
-EVALUATION_CREW_OUTPUT_LOG_FILE
-PLOT_SAVE_DIR
-PDF_IMAGES_DIR
-SIMILARITY_THRESHOLD = 0.8
+1. OPENAI_API_KEY
+2. PDF_DOCUMENT_FILE_PATH
+3. GOLDEN_QA_DATASET
+4. PDF_PARSER_CREW_OUTPUT_LOG_FILE
+5. EVALUATION_CREW_OUTPUT_LOG_FILE
+6. PLOT_SAVE_DIR
+7. PDF_IMAGES_DIR
+8. SIMILARITY_THRESHOLD = 0.8
