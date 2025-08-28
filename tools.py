@@ -1,18 +1,21 @@
 from crewai.tools import BaseTool
 import fitz
 import base64
-from typing import Any, Dict, Union
+from typing import Any
 from langchain_core.messages import HumanMessage
 import time
 from langchain_community.vectorstores import FAISS
-# from deepeval.metrics import FaithfulnessMetric, AnswerRelevancyMetric
 from ragas import evaluate
 from datasets import Dataset
 from ragas.metrics import Faithfulness, ResponseRelevancy
-from deepeval.test_case import LLMTestCase
 import json
 from dotenv import load_dotenv
 import os
+import nltk
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+nltk.download('punkt')
 
 def pdf_page_to_png_bytes(page):
     """
@@ -46,12 +49,13 @@ class PDFParserTool(BaseTool):
     description: str = "Converts PDF pages to base64 encoded images."
 
     def _run(self, pdf_document_file_path: str) -> list:
+        load_dotenv()
         doc = fitz.open(pdf_document_file_path)
         images_paths = []
         for i, page in enumerate(doc):
             img_bytes = pdf_page_to_png_bytes(page)
             img_b64 = image_bytes_to_base64(img_bytes)
-            image_path = f"debug_page_{i+1}.png"
+            image_path = f"{os.getenv('PDF_IMAGES_DIR')}/debug_page_{i+1}.png"
             save_b64_image(img_b64, image_path)
             images_paths.append(image_path)
         return {"image_paths": images_paths}
@@ -126,50 +130,87 @@ class Image2TextTool(BaseTool):
 class ChunkTextTool(BaseTool):
     name: str = "ChunkTextTool"
     description: str = "Chunks text into smaller segments."
-    llm: Any
+    embedding_model: Any
+    similarity_threshold: float
 
-    def __init__(self, llm_client):
-        super().__init__(llm=llm_client)
-        self.llm = llm_client
+    def __init__(self, embedding_model_client, similarity_threshold):
+        super().__init__(embedding_model=embedding_model_client, similarity_threshold=similarity_threshold)
+        self.embedding_model = embedding_model_client
+        self.similarity_threshold = similarity_threshold
 
     def _run(self, extracted_text: str) -> list:
-        # Prepare a prompt giving the LLM the mini-chunks and asking it to group them.
-        prompt = f"""
-        You will receive a concatenated string of extracted texts from a larger document. 
-        Your task is to freely split the concatenated string into mini chunks to form the most coherent, semantically meaningful, and 
-        logically organized chunks possible.
-        Feel free to recreate chunks by combining, splitting, or reordering texts based on their meaning and thematic consistency.
-        Please output the resulting chunks in a clear, numbered format. 
-        Example format:
-        Chunk 1 Content: ...
+        # Step 1: Split text into sentences
+        sentences = nltk.sent_tokenize(extracted_text)
 
-        Chunk 2 Content: ...
+        # Step 2: Encode sentences
+        embeddings = self.embedding_model.embed_documents(sentences)
 
-        Concatenated string:
-        {extracted_text}
-        """
-        # Get grouping suggestions from the LLM
-        response = self.llm.invoke(prompt)
-        # (Optionally, parse out the chunk groupings here)
+        # Step 3: Compute similarity between consecutive sentences
+        sims = cosine_similarity(embeddings[:-1], embeddings[1:]).diagonal()
 
-        return {"generated_chunks": response.content}
+        # Step 3.1: Compute dynamic threshold = top 25% quantile
+        threshold = np.percentile(sims, 20)
+        similarity_threshold = min(self.similarity_threshold, threshold)
+
+        # Step 4: Group sentences by similarity threshold into chunks
+        chunks = []
+        current_chunk = [sentences[0]]
+        for i, sim in enumerate(sims):
+            if sim >= similarity_threshold:
+                current_chunk.append(sentences[i+1])
+            else:
+                chunks.append('\n'.join(current_chunk))
+                current_chunk = [sentences[i+1]]
+        if current_chunk:
+            chunks.append('\n'.join(current_chunk))
+        # print('---PRINTING OF CHUNKS---')
+        # print(f"Total Chunks Created: {len(chunks)}")
+        # for i, chunk in enumerate(chunks):
+        #     print(f"Chunk {i+1} Content:\n{chunk}\n")
+        return {"generated_chunks": chunks}
+        # # Prepare a prompt giving the LLM the mini-chunks and asking it to group them.
+        # prompt = f"""
+        # You will receive a concatenated string of extracted texts from a larger document. 
+        # Your task is to freely split the concatenated string into mini chunks to form the most coherent, semantically meaningful, and 
+        # logically organized chunks possible.
+        # Feel free to recreate chunks by combining, splitting, or reordering texts based on their meaning and thematic consistency.
+        # Please output the resulting chunks in a clear, numbered format. 
+        # Example format:
+        # Chunk 1 Content: ...
+
+        # Chunk 2 Content: ...
+
+        # Concatenated string:
+        # {extracted_text}
+        # """
+        # # Get grouping suggestions from the LLM
+        # response = self.llm.invoke(prompt)
+        # # (Optionally, parse out the chunk groupings here)
+
+        # return {"generated_chunks": response.content}
 
 class VectorizeTextQATool(BaseTool):
     name: str = "VectorizeTextQATool"
     description: str = "Vectorizes text into embeddings and returns answer based on user query"
-    embedding_llm: Any
+    embedding_model: Any
     llm: Any
 
-    def __init__(self, embedding_llm_client, llm_client):
-        super().__init__(embedding_llm=embedding_llm_client, llm=llm_client)
-        self.embedding_llm = embedding_llm_client
+    def __init__(self, embedding_model_client, llm_client):
+        super().__init__(embedding_model=embedding_model_client, llm=llm_client)
+        self.embedding_model = embedding_model_client
         self.llm = llm_client
 
     def _run(self, chunks: list, user_query: str) -> dict:
         # Creates vector store and encodes texts internally
-        vectorstore = FAISS.from_texts(chunks, self.embedding_llm)
-        retrieved_docs = vectorstore.similarity_search(user_query, k=3)
-        retrieved_docs = [doc.page_content for doc in retrieved_docs]
+        vectorstore = FAISS.from_texts(chunks, self.embedding_model)
+        candidate_docs = vectorstore.similarity_search_with_score(user_query, k=len(chunks))
+
+        # Separate docs and scores
+        _, scores = zip(*candidate_docs)
+
+        # Use scores to compute threshold and filter top 20%
+        threshold = np.percentile(scores, 20)
+        retrieved_docs = [doc.page_content for doc, score in candidate_docs if score >= threshold]
         # retrieved_docs = "\n".join(retrieved_docs)
         prompt = f"""You are a document analysis assistant. Your only source of information is the provided context.
   
@@ -195,9 +236,11 @@ class VectorizeTextQATool(BaseTool):
 class EvaluationTool(BaseTool):
     name: str = "EvaluationTool"
     description: str = "Evaluates the output from the first crew"
+    ground_truth: str
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, ground_truth_answer: str):
+        super().__init__(ground_truth=ground_truth_answer)
+        self.ground_truth = ground_truth_answer
 
     def _run(self, output: str, user_query: str, retrieved_docs: list) -> float:
         load_dotenv()
@@ -205,7 +248,7 @@ class EvaluationTool(BaseTool):
             "question": [user_query],
             "answer": [output],
             "contexts": [retrieved_docs],
-            "ground_truth": [os.getenv("MODEL_ANSWER")],
+            "ground_truth": [self.ground_truth],
         }
         ragas_input = Dataset.from_dict(ragas_input)
         result = evaluate(ragas_input, metrics=[Faithfulness(), ResponseRelevancy()])
